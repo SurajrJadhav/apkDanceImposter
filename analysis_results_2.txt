@@ -1,0 +1,6 @@
+Analyzing apk_dance-imposter...                                 
+
+  error • The name 'HomeScreen' isn't a class • lib/main.dart:94:24 • creation_with_non_type
+  error • The name 'HomeScreen' isn't a class • lib/screens/login_screen.dart:60:57 • creation_with_non_type
+  error • The name 'HomeScreen' isn't a class • lib/screens/registration_screen.dart:109:57 • creation_with_non_type
+

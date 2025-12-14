@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "699157037890",
+    "project_id": "dance-imposter",
+    "storage_bucket": "dance-imposter.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:699157037890:android:98f8b29133c04dd7eafedb",
+        "android_client_info": {
+          "package_name": "com.groupmanager.group_manager_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDj4trKsxMvRJztGJI8Tt8e_2Gn3ZbqDvk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
