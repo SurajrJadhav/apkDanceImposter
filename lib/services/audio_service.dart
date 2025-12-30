@@ -1,4 +1,5 @@
 import 'package:just_audio/just_audio.dart';
+import 'package:flutter/foundation.dart';
 import '../models/song_model.dart';
 import 'song_service.dart';
 
@@ -33,7 +34,9 @@ class AudioService {
       // Start playback
       await _audioPlayer.play();
     } catch (e) {
-      throw 'Failed to play song: $e';
+      debugPrint('Error playing song: $e');
+      // If file is missing (expired), this will catch it.
+      // The UI will just stay silent instead of crashing.
     }
   }
 

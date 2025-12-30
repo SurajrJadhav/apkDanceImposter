@@ -7,6 +7,7 @@ class SongModel {
   final String type; // 'sad' or 'dance'
   final String userId; // Owner of the song
   final DateTime createdAt;
+  final DateTime expireAt;
   final int? durationMs; // Optional duration in milliseconds
 
   SongModel({
@@ -16,6 +17,7 @@ class SongModel {
     required this.type,
     required this.userId,
     required this.createdAt,
+    required this.expireAt,
     this.durationMs,
   });
 
@@ -28,6 +30,7 @@ class SongModel {
       'type': type,
       'userId': userId,
       'createdAt': Timestamp.fromDate(createdAt),
+      'expireAt': Timestamp.fromDate(expireAt),
       'durationMs': durationMs,
     };
   }
@@ -41,6 +44,9 @@ class SongModel {
       type: map['type'] as String,
       userId: map['userId'] as String,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
+      expireAt: map['expireAt'] != null 
+          ? (map['expireAt'] as Timestamp).toDate()
+          : (map['createdAt'] as Timestamp).toDate().add(const Duration(days: 8)), // Fallback
       durationMs: map['durationMs'] as int?,
     );
   }
@@ -59,6 +65,7 @@ class SongModel {
     String? type,
     String? userId,
     DateTime? createdAt,
+    DateTime? expireAt,
     int? durationMs,
   }) {
     return SongModel(
@@ -68,6 +75,7 @@ class SongModel {
       type: type ?? this.type,
       userId: userId ?? this.userId,
       createdAt: createdAt ?? this.createdAt,
+      expireAt: expireAt ?? this.expireAt,
       durationMs: durationMs ?? this.durationMs,
     );
   }

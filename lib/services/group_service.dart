@@ -51,6 +51,7 @@ class GroupService {
           ),
         ],
         createdAt: DateTime.now(),
+        expireAt: DateTime.now().add(const Duration(hours: 1)),
       );
 
       // Save to Firestore

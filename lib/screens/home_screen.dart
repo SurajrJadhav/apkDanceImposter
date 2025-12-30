@@ -58,6 +58,10 @@ class _HomeScreenState extends State<HomeScreen> {
           _userGroups = groups;
           _isLoading = false;
         });
+        
+        // Check for expired groups
+        _checkExpiredGroups();
+        
         _updateGameMonitoring();
       } else {
         setState(() {
@@ -68,6 +72,36 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _checkExpiredGroups() async {
+    if (_currentUser == null) return;
+
+    final now = DateTime.now();
+    for (final group in _userGroups) {
+      if (now.isAfter(group.expireAt)) {
+        // Group expired
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Group ${group.groupId} has expired (1 hour limit).'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        
+        // Leave/Delete locally and on server
+        if (group.creatorId == _currentUser!.userId) {
+          await _groupService.deleteGroup(group.groupId, _currentUser!.userId);
+        } else {
+          await _groupService.leaveGroup(groupId: group.groupId, userId: _currentUser!.userId);
+        }
+        
+        // Refresh list
+        _loadUserData();
+      }
     }
   }
 
@@ -95,8 +129,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _navigateToGameScreen(group.groupId);
           }
         } else if (gameState != null && gameState.isIdle) {
-          // Game stopped, close game screen if open
-          _closeGameScreen(group.groupId);
+          // Game stopped, but we stay in GameScreen (Lobby mode)
+          // _closeGameScreen(group.groupId); 
         }
       });
 
@@ -128,11 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _closeGameScreen(String groupId) {
-    if (_isInGameScreen && _activeGameGroupId == groupId) {
-      Navigator.of(context).pop();
-    }
-  }
+
 
   Future<void> _logout() async {
     try {

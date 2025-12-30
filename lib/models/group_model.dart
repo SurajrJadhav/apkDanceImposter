@@ -35,6 +35,7 @@ class GroupModel {
   final String creatorName;
   final List<GroupMember> members;
   final DateTime createdAt;
+  final DateTime expireAt;
   final GameState? gameState;
 
   GroupModel({
@@ -43,6 +44,7 @@ class GroupModel {
     required this.creatorName,
     required this.members,
     required this.createdAt,
+    required this.expireAt,
     this.gameState,
   });
 
@@ -54,6 +56,7 @@ class GroupModel {
       'creatorName': creatorName,
       'members': members.map((m) => m.toMap()).toList(),
       'createdAt': Timestamp.fromDate(createdAt),
+      'expireAt': Timestamp.fromDate(expireAt),
       'gameState': gameState?.toMap(),
     };
   }
@@ -69,6 +72,9 @@ class GroupModel {
               .toList() ??
           [],
       createdAt: (map['createdAt'] as Timestamp).toDate(),
+      expireAt: map['expireAt'] != null 
+          ? (map['expireAt'] as Timestamp).toDate()
+          : (map['createdAt'] as Timestamp).toDate().add(const Duration(hours: 1)), // Fallback for old groups
       gameState: map['gameState'] != null
           ? GameState.fromMap(map['gameState'] as Map<String, dynamic>)
           : null,
@@ -88,6 +94,7 @@ class GroupModel {
     String? creatorName,
     List<GroupMember>? members,
     DateTime? createdAt,
+    DateTime? expireAt,
     GameState? gameState,
   }) {
     return GroupModel(
@@ -96,6 +103,7 @@ class GroupModel {
       creatorName: creatorName ?? this.creatorName,
       members: members ?? this.members,
       createdAt: createdAt ?? this.createdAt,
+      expireAt: expireAt ?? this.expireAt,
       gameState: gameState ?? this.gameState,
     );
   }

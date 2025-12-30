@@ -79,11 +79,10 @@ class _GameScreenState extends State<GameScreen>
 
     try {
       // Handle Idle/Stop
+      // Handle Idle/Stop
       if (gameState.isIdle) {
         await _audioService.stop();
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        // Do NOT pop here. Let the UI show the "Waiting" state.
         return;
       }
 
@@ -135,6 +134,30 @@ class _GameScreenState extends State<GameScreen>
       canPop: false, // Prevent back button
       child: Scaffold(
         backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+            tooltip: 'Leave Game',
+          ),
+          actions: [
+            // Show group ID
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16.0),
+                child: Text(
+                  'Group: ${widget.groupId}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         body: SafeArea(
           child: Center(
             child: Column(
@@ -177,7 +200,7 @@ class _GameScreenState extends State<GameScreen>
                       ? 'Listening...'
                       : _gameState?.isPaused == true
                           ? 'Paused'
-                          : 'Waiting...',
+                          : 'Lobby',
                   style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -193,7 +216,7 @@ class _GameScreenState extends State<GameScreen>
                       ? 'Listen carefully to the music'
                       : _gameState?.isPaused == true
                           ? 'Game paused by creator'
-                          : 'Game will start soon',
+                          : 'Waiting for host to start...',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.white.withOpacity( 0.7),
@@ -343,16 +366,19 @@ class _GameScreenState extends State<GameScreen>
                             ),
                             const SizedBox(height: 32),
                             ElevatedButton(
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () {
+                                // Reset game state locally if needed, but mainly just wait for host
+                                // or manually leave
+                              },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
+                                backgroundColor: Colors.white.withOpacity(0.1),
+                                foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 32,
                                   vertical: 16,
                                 ),
                               ),
-                              child: const Text('Back to Lobby'),
+                              child: const Text('Waiting for Host...'),
                             ),
                           ],
                         );

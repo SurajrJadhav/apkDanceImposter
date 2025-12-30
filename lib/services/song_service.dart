@@ -5,6 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/foundation.dart';
 import '../models/song_model.dart';
 
 class SongService {
@@ -55,6 +57,7 @@ class SongService {
         type: type,
         userId: userId,
         createdAt: DateTime.now(),
+        expireAt: DateTime.now().add(const Duration(days: 8)),
       );
 
       // Save metadata to Firestore
@@ -99,12 +102,33 @@ class SongService {
             snapshot.docs.map((doc) => SongModel.fromSnapshot(doc)).toList());
   }
 
+  // Get single song by ID
+  Future<SongModel?> getSongById(String songId) async {
+    try {
+      final doc = await _firestore.collection('songs').doc(songId).get();
+      if (doc.exists) {
+        return SongModel.fromSnapshot(doc);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Delete song
   Future<void> deleteSong(SongModel song) async {
     try {
-      // Delete from Storage
-      final storageRef = _storage.refFromURL(song.downloadUrl);
-      await storageRef.delete();
+      // Delete from Storage only if it's a Firebase Storage URL
+      if (song.downloadUrl.contains('firebasestorage.googleapis.com')) {
+        try {
+          final storageRef = _storage.refFromURL(song.downloadUrl);
+          await storageRef.delete();
+        } catch (e) {
+          debugPrint('Error deleting file from storage: $e');
+          // Continue to delete from Firestore even if storage delete fails
+          // (e.g. if file was already deleted by lifecycle rule)
+        }
+      }
 
       // Delete from Firestore
       await _firestore.collection('songs').doc(song.id).delete();
@@ -128,6 +152,17 @@ class SongService {
 
       // Check if already cached
       if (await file.exists()) {
+        return filePath;
+      }
+
+      // Handle Asset URLs (Bundled Songs)
+      if (song.downloadUrl.startsWith('asset://')) {
+        final assetPath = song.downloadUrl.replaceFirst('asset://', '');
+        // Load asset data
+        final byteData = await rootBundle.load(assetPath);
+        final bytes = byteData.buffer.asUint8List();
+        // Write to cache file
+        await file.writeAsBytes(bytes);
         return filePath;
       }
 
@@ -188,27 +223,43 @@ class SongService {
       final List<Map<String, String>> defaultSongs = [
         {
           'title': 'Funky Energy (Dance)',
-          'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+          'url': 'asset://assets/songs/funky_energy.mp3',
           'type': 'dance',
         },
         {
           'title': 'Upbeat Groove (Dance)',
-          'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+          'url': 'asset://assets/songs/upbeat_groove.mp3',
           'type': 'dance',
         },
         {
           'title': 'Melancholy Piano (Sad)',
-          'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+          'url': 'asset://assets/songs/melancholy_piano.mp3',
           'type': 'sad',
         },
         {
           'title': 'Slow Motion (Sad)',
-          'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+          'url': 'asset://assets/songs/slow_motion.mp3',
           'type': 'sad',
         },
       ];
 
+      // Get existing songs to prevent duplicates
+      final existingSongsSnapshot = await _firestore
+          .collection('songs')
+          .where('userId', isEqualTo: userId)
+          .get();
+      
+      final existingTitles = existingSongsSnapshot.docs
+          .map((doc) => doc.data()['title'] as String)
+          .toSet();
+
+      int addedCount = 0;
+
       for (final songData in defaultSongs) {
+        if (existingTitles.contains(songData['title'])) {
+          continue; // Skip if already exists
+        }
+
         final songId = _uuid.v4();
         
         final song = SongModel(
@@ -218,12 +269,19 @@ class SongService {
           type: songData['type']!,
           userId: userId,
           createdAt: DateTime.now(),
+          expireAt: DateTime.now().add(const Duration(days: 8)),
         );
 
         await _firestore
             .collection('songs')
             .doc(songId)
             .set(song.toMap());
+        
+        addedCount++;
+      }
+      
+      if (addedCount == 0) {
+        throw 'Starter pack already added!';
       }
     } catch (e) {
       throw 'Failed to add default songs: $e';

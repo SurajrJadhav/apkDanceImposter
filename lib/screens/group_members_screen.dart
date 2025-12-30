@@ -7,6 +7,8 @@ import '../services/game_service.dart';
 import '../models/group_model.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'song_library_screen.dart';
+import '../services/song_service.dart';
+import '../models/song_model.dart';
 
 class GroupMembersScreen extends StatefulWidget {
   final String groupId;
@@ -24,7 +26,15 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
   final GroupService _groupService = GroupService();
   final AuthService _authService = AuthService();
   final GameService _gameService = GameService();
+  final SongService _songService = SongService(); // Added SongService
   String? _currentUserId;
+  
+  // Cache for song titles to prevent repeated fetches
+  final Map<String, Future<SongModel?>> _songFutures = {};
+
+  Future<SongModel?> _getSongTitle(String songId) {
+    return _songFutures.putIfAbsent(songId, () => _songService.getSongById(songId));
+  }
 
   @override
   void initState() {
@@ -629,6 +639,10 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                         itemBuilder: (context, index) {
                           final member = group.members[index];
                           final isMemberCreator = member.userId == group.creatorId;
+                          
+                          // Game Info (Creator Only)
+                          final isImposter = group.gameState?.imposterUserId == member.userId;
+                          final songAssignment = group.gameState?.songAssignments[member.userId];
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -638,7 +652,10 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                               border: Border.all(
                                 color: isMemberCreator
                                     ? Theme.of(context).primaryColor.withOpacity( 0.3)
-                                    : Colors.grey[300]!,
+                                    : isCreator && isImposter
+                                        ? Colors.red.withOpacity(0.5)
+                                        : Colors.grey[300]!,
+                                width: isCreator && isImposter ? 2 : 1,
                               ),
                               boxShadow: [
                                 BoxShadow(
@@ -653,26 +670,50 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                                 horizontal: 16,
                                 vertical: 8,
                               ),
-                              leading: CircleAvatar(
-                                backgroundColor: isMemberCreator
-                                    ? Theme.of(context).primaryColor
-                                    : Colors.grey[700],
-                                child: Text(
-                                  member.name[0].toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
+                              leading: Stack(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: isMemberCreator
+                                        ? Theme.of(context).primaryColor
+                                        : isCreator && isImposter
+                                            ? Colors.red
+                                            : Colors.grey[700],
+                                    child: Text(
+                                      member.name[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  if (isCreator && isImposter)
+                                    Positioned(
+                                      right: -2,
+                                      bottom: -2,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.warning,
+                                          size: 12,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                               title: Row(
                                 children: [
                                   Expanded(
                                     child: Text(
                                       member.name,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 16,
+                                        color: isCreator && isImposter ? Colors.red : Colors.black87,
                                       ),
                                     ),
                                   ),
@@ -694,18 +735,74 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
+                                    )
+                                  else if (isCreator && isImposter)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'IMPOSTER',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                 ],
                               ),
-                              subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  'Joined ${_formatDate(member.joinedAt)}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Joined ${_formatDate(member.joinedAt)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  if (isCreator && songAssignment != null)
+                                    FutureBuilder<SongModel?>(
+                                      future: _getSongTitle(songAssignment.songId),
+                                      builder: (context, snapshot) {
+                                        final songTitle = snapshot.data?.title ?? 'Loading...';
+                                        return Padding(
+                                          padding: const EdgeInsets.only(top: 4),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.music_note,
+                                                size: 12,
+                                                color: Colors.grey[600],
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  songTitle,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[800],
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                ],
                               ),
                             ),
                           );
